@@ -9,14 +9,19 @@ router.get("/", async (req, res) => {
   res.json(rows);
 });
 
-// Criar usuário
+// Criar sala
 router.post("/", async (req, res) => {
-  const { nome, email, telefone, senhaHash } = req.body;
-  await db.query(
-    "INSERT INTO Funcionario (nome, email, telefone, senhaHash) VALUES (?, ?, ?, ?)",
-    [nome, email, telefone, senhaHash]
-  );
-  res.json({ message: "Usuário criado com sucesso!" });
+  try {
+    const { nome, descricao, numero, capacidade, tipoSalaId } = req.body;
+    const [result]: any = await db.query(
+      "INSERT INTO Sala (nome, descricao, numero, capacidade, tipoSalaId) VALUES (?, ?, ?, ?, ?)",
+      [nome, descricao, numero, capacidade, tipoSalaId]
+    );
+    res.json({ id: result.insertId, nome, descricao });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Erro ao criar sala" });
+  }
 });
 
 // Atualizar usuário
