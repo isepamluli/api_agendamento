@@ -10,7 +10,7 @@ const router = Router();
  */
 router.get("/", async (req: Request, res: Response) => {
   try {
-    const [rows] = await db.query(
+    const [rows]: any = await db.query(
       "SELECT id, nome, email, telefone FROM Funcionario"
     );
     res.json({ message: "Funcionários listados com sucesso", data: rows });
@@ -43,7 +43,7 @@ router.get("/:id", async (req: Request, res: Response) => {
 });
 
 /**
- * ✅ Criar funcionário
+ * ✅ Criar funcionário (com hash de senha)
  */
 router.post("/", async (req: Request, res: Response) => {
   try {
@@ -52,7 +52,9 @@ router.post("/", async (req: Request, res: Response) => {
     const { nome, email, telefone, senha } = req.body;
 
     if (!nome || !email || !senha) {
-      return res.status(400).json({ error: "Nome, email e senha são obrigatórios!" });
+      return res
+        .status(400)
+        .json({ error: "Nome, email e senha são obrigatórios!" });
     }
 
     // 🔐 Gerar hash da senha
@@ -76,7 +78,7 @@ router.post("/", async (req: Request, res: Response) => {
 });
 
 /**
- * ✅ Atualizar funcionário
+ * ✅ Atualizar funcionário (sem alterar senha aqui)
  */
 router.put("/:id", async (req: Request, res: Response) => {
   try {
@@ -106,7 +108,10 @@ router.delete("/:id", async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
-    const [result]: any = await db.query("DELETE FROM Funcionario WHERE id=?", [id]);
+    const [result]: any = await db.query(
+      "DELETE FROM Funcionario WHERE id=?",
+      [id]
+    );
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ error: "Funcionário não encontrado!" });
@@ -127,12 +132,14 @@ router.post("/login", async (req: Request, res: Response) => {
     const { email, senha } = req.body;
 
     if (!email || !senha) {
-      return res.status(400).json({ error: "E-mail e senha são obrigatórios!" });
+      return res
+        .status(400)
+        .json({ error: "E-mail e senha são obrigatórios!" });
     }
 
     // 🔍 Buscar funcionário
     const [rows]: any = await db.query(
-      "SELECT * FROM Funcionario WHERE email = ?",
+      "SELECT * FROM Funcionario WHERE email = ? LIMIT 1",
       [email]
     );
 
@@ -149,13 +156,26 @@ router.post("/login", async (req: Request, res: Response) => {
     }
 
     // 🔑 Gerar token JWT
+    if (!process.env.JWT_SECRET) {
+      console.error("⚠️ JWT_SECRET não configurado!");
+      return res.status(500).json({ error: "Erro interno de configuração" });
+    }
+
     const token = jwt.sign(
       { id: funcionario.id, email: funcionario.email },
-      process.env.JWT_SECRET || "segredo123", // use variável de ambiente
+      process.env.JWT_SECRET,
       { expiresIn: "1h" }
     );
 
-    res.json({ message: "Login realizado com sucesso!", token });
+    res.json({
+      message: "Login realizado com sucesso!",
+      token,
+      funcionario: {
+        id: funcionario.id,
+        nome: funcionario.nome,
+        email: funcionario.email,
+      },
+    });
   } catch (err) {
     console.error("❌ Erro no login:", err);
     res.status(500).json({ error: "Erro ao realizar login" });

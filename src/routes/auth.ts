@@ -15,8 +15,9 @@ router.post("/login", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Email e senha são obrigatórios!" });
     }
 
+    // 🔍 Buscar funcionário
     const [rows]: any = await db.query(
-      "SELECT * FROM Funcionario WHERE email = ?",
+      "SELECT * FROM Funcionario WHERE email = ? LIMIT 1",
       [email]
     );
 
@@ -26,20 +27,33 @@ router.post("/login", async (req: Request, res: Response) => {
 
     const funcionario = rows[0];
 
-    // ✅ Verificar senha
+    // ✅ Verificar senha (senha fornecida x senha hashada no banco)
     const senhaCorreta = await bcrypt.compare(senha, funcionario.senhaHash);
     if (!senhaCorreta) {
       return res.status(401).json({ error: "Credenciais inválidas" });
     }
 
     // ✅ Gerar token JWT
+    if (!process.env.JWT_SECRET) {
+      console.error("⚠️ JWT_SECRET não configurado!");
+      return res.status(500).json({ error: "Erro interno de configuração" });
+    }
+
     const token = jwt.sign(
       { id: funcionario.id, email: funcionario.email },
-      process.env.JWT_SECRET as string,
-      { expiresIn: "1h" } // Token válido por 1h
+      process.env.JWT_SECRET,
+      { expiresIn: "1h" }
     );
 
-    res.json({ message: "Login realizado com sucesso!", token });
+    res.json({
+      message: "Login realizado com sucesso!",
+      token,
+      funcionario: {
+        id: funcionario.id,
+        nome: funcionario.nome,
+        email: funcionario.email,
+      },
+    });
   } catch (err) {
     console.error("❌ Erro no login:", err);
     res.status(500).json({ error: "Erro no login" });
